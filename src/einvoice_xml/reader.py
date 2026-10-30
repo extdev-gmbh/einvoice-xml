@@ -7,6 +7,9 @@ Two carriers, three syntaxes:
 * a PDF that carries an XRechnung as the embedded file ``xrechnung.xml``; it is read like
   the bare file.
 
+An embedded file goes by any of its names: its key in the name tree of the PDF or its file
+name in the file specification.
+
 :func:`read` returns what the XML states — header data and the document totals — or says
 why there is none. It never guesses: a PDF without embedded XML, an unknown syntax, a
 credit note or totals that do not add up yield no amounts, only a reason.
@@ -461,21 +464,38 @@ def invoice_xml_root(data: bytes) -> str | None:
     }.get(root.tag)
 
 
-def _embedded_xml(pdf: bytes) -> list[tuple[str, EmbeddedFile]]:
-    """The XML files embedded in ``pdf``, the known invoice names first; none decoded yet."""
-    files: list[tuple[str, EmbeddedFile]] = []
+def _xml_names(entry: EmbeddedFile) -> list[str]:
+    """The names of ``entry`` that end in ``.xml``: its key in the name tree, its file name.
+
+    Both are input. A file name that is of the wrong type or cannot be resolved is no name,
+    which leaves the entry its key; it does not cost the other files of the PDF their reading.
+    """
+    names = [str(entry.name)]
+    try:
+        file_name = entry.alternative_name
+    except Exception:  # noqa: BLE001
+        file_name = None
+    if isinstance(file_name, str):
+        names.append(str(file_name))
+    return [name for name in names if name.lower().endswith(".xml")]
+
+
+def _embedded_xml(pdf: bytes) -> list[tuple[list[str], EmbeddedFile]]:
+    """The XML files embedded in ``pdf`` with their names, the known invoice names first;
+    none decoded yet."""
+    files: list[tuple[list[str], EmbeddedFile]] = []
     try:
         for index, entry in enumerate(PdfReader(io.BytesIO(pdf)).attachment_list):
             if index >= MAX_EMBEDDED_FILES:
                 raise LimitExceededError(f"the PDF embeds more than {MAX_EMBEDDED_FILES} files")
-            name = str(entry.name)
-            if name.lower().endswith(".xml"):
-                files.append((name, entry))
+            names = _xml_names(entry)
+            if names:
+                files.append((names, entry))
     except EInvoiceError:
         raise
     except Exception as exc:
         raise ReadError(f"the PDF cannot be read: {type(exc).__name__}") from exc
-    return sorted(files, key=lambda item: item[0].lower() not in KNOWN_ATTACHMENTS)
+    return sorted(files, key=lambda item: not any(name.lower() in KNOWN_ATTACHMENTS for name in item[0]))
 
 
 def _content(entry: EmbeddedFile) -> bytes:
@@ -550,11 +570,12 @@ def _read_pdf(content: bytes) -> Reading:
     if not candidates:
         return Reading(None, ("the PDF has no embedded ZUGFeRD/Factur-X data",))
     errors: list[str] = []
-    for name, entry in candidates:
+    for names, entry in candidates:
+        xrechnung = any(name.lower() == XRECHNUNG_ATTACHMENT for name in names)
         try:
-            parsed = _parse_invoice_xml(_content(entry), embedded=name.lower() != XRECHNUNG_ATTACHMENT)
+            parsed = _parse_invoice_xml(_content(entry), embedded=not xrechnung)
         except ReadError as exc:
-            errors.append(f"{_shown(name)}: {exc}")
+            errors.append(f"{_shown(names[0])}: {exc}")
             continue
         return _reading(*parsed)
     return Reading(None, (f"the embedded XML is no ZUGFeRD/Factur-X invoice ({'; '.join(errors)})",))

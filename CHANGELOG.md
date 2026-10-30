@@ -7,6 +7,15 @@ here.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-30
+
+### Fixed
+
+- `read` finds an embedded invoice by any of its names: the key in the name tree of the PDF or
+  the file name in the file specification (`/UF`, else `/F`). 0.1.1 looked at the key only and
+  reported a PDF as without e-invoice data when, say, the key was `attachment1` and the file
+  name `factur-x.xml`.
+
 ## [0.1.1] - 2026-10-30
 
 First published release. 0.1.0 was tagged but never published to PyPI (broken pin of the

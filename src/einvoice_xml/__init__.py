@@ -41,7 +41,7 @@ from einvoice_xml.reader import (
 )
 from einvoice_xml.writer import GUIDELINE, build_cii, problems, tax_breakdown
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "ATTACHMENT_NAME",

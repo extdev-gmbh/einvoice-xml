@@ -14,7 +14,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from pypdf import PdfWriter
-from pypdf.generic import ArrayObject, DictionaryObject, NameObject
+from pypdf.generic import ArrayObject, DictionaryObject, EmbeddedFile, NameObject, NullObject, NumberObject, PdfObject
 
 from einvoice_xml import (
     MAX_EMBEDDED_FILES,
@@ -121,6 +121,62 @@ def test_the_limit_of_embedded_files() -> None:
     assert "no embedded" in read(f.pdf(files)).problems[0]
     files["one-more.txt"] = b"x"
     assert "more than" in read(f.pdf(files)).problems[0]
+
+
+def test_the_limit_counts_files_not_their_names() -> None:
+    specs: dict[str, dict[str, str | PdfObject | None]] = {
+        f"{index}.xml": {"/F": f"{index}-file.xml"} for index in range(MAX_EMBEDDED_FILES)
+    }
+    files = {key: b"<Order/>" for key in specs}
+    assert "no ZUGFeRD/Factur-X invoice" in read(f.pdf(files, file_specs=specs)).problems[0]
+    files["one-more.xml"] = b"<Order/>"
+    assert "more than" in read(f.pdf(files, file_specs=specs)).problems[0]
+
+
+MALFORMED_NAMES = [
+    NumberObject(7),
+    NullObject(),
+    ArrayObject([NumberObject(7)]),
+    DictionaryObject({NameObject("/F"): NumberObject(7)}),
+]
+
+
+@pytest.mark.parametrize("name", MALFORMED_NAMES, ids=["number", "null", "array", "dictionary"])
+@pytest.mark.parametrize("key", ["/F", "/UF"])
+def test_a_malformed_file_name_leaves_the_key(key: str, name: PdfObject) -> None:
+    content = f.pdf({"factur-x.xml": f.cii()}, file_specs={"factur-x.xml": {key: name}})
+    assert read(content).has_amounts
+
+
+@pytest.mark.parametrize("name", MALFORMED_NAMES, ids=["number", "null", "array", "dictionary"])
+def test_a_malformed_file_name_is_no_name(name: PdfObject) -> None:
+    content = f.pdf({"attachment1": f.cii()}, file_specs={"attachment1": {"/F": name}})
+    assert "no embedded" in read(content).problems[0]
+
+
+@pytest.mark.parametrize("name", MALFORMED_NAMES, ids=["number", "null", "array", "dictionary"])
+def test_a_malformed_file_name_leaves_the_file_next_to_it(name: PdfObject) -> None:
+    files = {"attachment1": b"x", "factur-x.xml": f.cii()}
+    assert read(f.pdf(files, file_specs={"attachment1": {"/F": name}})).has_amounts
+
+
+def test_a_file_name_that_cannot_be_resolved_leaves_the_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    def broken(_entry: EmbeddedFile) -> str:
+        raise ValueError("broken")
+
+    monkeypatch.setattr(EmbeddedFile, "alternative_name", property(broken))
+    assert read(f.zugferd_pdf()).has_amounts
+
+
+def test_a_very_long_file_name_in_a_message_is_bounded() -> None:
+    content = f.pdf({"attachment1": b"<Order/>"}, file_specs={"attachment1": {"/F": "x" * 100_000 + ".xml"}})
+    reading = read(content)
+    assert reading.invoice is None and len(reading.problems[0]) < 200
+
+
+@given(st.text(max_size=200))
+def test_any_file_name(name: str) -> None:
+    assert isinstance(read(f.pdf({"attachment1": b"<Order/>"}, file_specs={"attachment1": {"/F": name}})), Reading)
 
 
 def test_a_cycle_in_the_name_tree_of_the_pdf() -> None:

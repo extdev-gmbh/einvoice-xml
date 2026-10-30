@@ -6,6 +6,7 @@ import io
 from collections.abc import Collection
 
 from pypdf import PdfWriter
+from pypdf.generic import NameObject, PdfObject, TextStringObject
 
 SELLER = "Example Hosting GmbH"
 SELLER_VAT_ID = "DE999999999"
@@ -198,12 +199,23 @@ def ubl(
 """.encode()
 
 
-def pdf(attachments: dict[str, bytes] | None = None) -> bytes:
-    """A blank PDF with ``attachments`` embedded."""
+def pdf(
+    attachments: dict[str, bytes] | None = None,
+    *,
+    file_specs: dict[str, dict[str, str | PdfObject | None]] | None = None,
+) -> bytes:
+    """A blank PDF with ``attachments`` embedded. ``file_specs`` overrides entries of the file
+    specification of an attachment, by its key in the name tree, such as
+    ``{"attachment1": {"/F": "factur-x.xml"}}``; ``None`` removes the entry."""
     writer = PdfWriter()
     writer.add_blank_page(width=200, height=200)
     for name, content in (attachments or {}).items():
-        writer.add_attachment(name, content)
+        spec = writer.add_attachment(name, content).pdf_object
+        for key, value in (file_specs or {}).get(name, {}).items():
+            if value is None:
+                del spec[key]
+            else:
+                spec[NameObject(key)] = TextStringObject(value) if isinstance(value, str) else value
     buffer = io.BytesIO()
     writer.write(buffer)
     return buffer.getvalue()

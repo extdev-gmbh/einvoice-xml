@@ -129,6 +129,70 @@ def test_a_ubl_invoice_is_not_accepted_inside_a_pdf() -> None:
         parse_invoice_xml(f.ubl(), embedded=True)
 
 
+@pytest.mark.parametrize(
+    ("key", "file_name", "content", "data_format"),
+    [
+        ("factur-x.xml", "factur-x.xml", f.cii(), DataFormat.FACTUR_X),
+        ("attachment1", "factur-x.xml", f.cii(), DataFormat.FACTUR_X),
+        ("Factur-X", "factur-x.xml", f.cii(), DataFormat.FACTUR_X),
+        ("My first attachment", "ZUGFeRD-invoice.xml", f.cii(), DataFormat.FACTUR_X),
+        ("attachment1", "xrechnung.xml", f.ubl(), DataFormat.XRECHNUNG_UBL),
+        ("attachment1", "xrechnung.xml", f.cii(), DataFormat.XRECHNUNG_CII),
+        ("attachment1", "FACTUR-X.XML", f.cii(), DataFormat.FACTUR_X),
+        ("invoice.xml", "notes.txt", f.cii(), DataFormat.FACTUR_X),
+        ("factur-x.xml", "xrechnung.xml", f.ubl(), DataFormat.XRECHNUNG_UBL),
+        ("xrechnung.xml", "factur-x.xml", f.ubl(), DataFormat.XRECHNUNG_UBL),
+    ],
+)
+def test_an_embedded_file_goes_by_its_key_or_its_file_name(
+    key: str, file_name: str, content: bytes, data_format: DataFormat
+) -> None:
+    reading = read(f.pdf({key: content}, file_specs={key: {"/F": file_name}}))
+    assert reading.has_amounts and reading.invoice is not None and reading.invoice.format is data_format
+
+
+def test_only_uf_names_the_file() -> None:
+    reading = read(f.pdf({"attachment1": f.cii()}, file_specs={"attachment1": {"/F": None, "/UF": "factur-x.xml"}}))
+    assert reading.has_amounts
+
+
+def test_only_the_key_names_the_file() -> None:
+    reading = read(f.pdf({"factur-x.xml": f.cii()}, file_specs={"factur-x.xml": {"/F": None}}))
+    assert reading.has_amounts
+
+
+def test_uf_wins_over_f() -> None:
+    spec = {"/UF": "notes.txt", "/F": "factur-x.xml"}
+    assert "no embedded" in read(f.pdf({"attachment1": f.cii()}, file_specs={"attachment1": spec})).problems[0]
+
+
+def test_a_file_without_an_xml_name_is_no_candidate() -> None:
+    reading = read(f.pdf({"attachment1": f.cii()}, file_specs={"attachment1": {"/F": "notes.txt"}}))
+    assert "no embedded" in reading.problems[0]
+
+
+def test_a_known_file_name_sorts_first_whatever_the_key() -> None:
+    files = {"a.xml": f.cii(number="OTHER"), "b": f.cii(number="WANTED")}
+    reading = read(f.pdf(files, file_specs={"b": {"/F": "factur-x.xml"}}))
+    assert reading.invoice is not None and reading.invoice.number == "WANTED"
+
+
+def test_the_order_among_the_other_files_stays() -> None:
+    files = {"a": f.cii(number="FIRST"), "b.xml": f.cii(number="SECOND")}
+    reading = read(f.pdf(files, file_specs={"a": {"/F": "invoice.xml"}}))
+    assert reading.invoice is not None and reading.invoice.number == "FIRST"
+
+
+def test_a_ubl_invoice_under_another_file_name_is_refused_inside_a_pdf() -> None:
+    reading = read(f.pdf({"attachment1": f.ubl()}, file_specs={"attachment1": {"/F": "invoice.xml"}}))
+    assert reading.invoice is None and "unknown XML document" in reading.problems[0]
+
+
+def test_a_file_with_two_xml_names_is_tried_once() -> None:
+    reading = read(f.pdf({"factur-x.xml": b"<Order/>"}, file_specs={"factur-x.xml": {"/F": "invoice.xml"}}))
+    assert reading.invoice is None and reading.problems[0].count("unknown XML document") == 1
+
+
 def test_invoice_xml_root() -> None:
     assert invoice_xml_root(f.cii()) == "CII"
     assert invoice_xml_root(f.ubl()) == "UBL invoice"
