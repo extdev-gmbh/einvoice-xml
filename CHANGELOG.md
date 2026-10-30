@@ -7,7 +7,17 @@ here.
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-30
+## [0.1.1] - 2026-10-30
+
+First published release. 0.1.0 was tagged but never published to PyPI (broken pin of the
+publish action).
+
+### Fixed
+
+- The release workflow pins the publish action to the commit of its tag. No functional change
+  to the library.
+
+## [0.1.0] - 2026-10-30 (not published)
 
 First release.
 

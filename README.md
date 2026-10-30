@@ -25,7 +25,7 @@ Python 3.12 or later. Runtime dependencies: `pypdf` (embedded files) and `defuse
 - **Not tax advice, no certification.** The generated files are checked in CI against the
   EN 16931 rules with an external validator; whether an invoice is right under tax law
   remains your responsibility.
-- **No XRechnung UBL writer in 0.1.0**, and no XRechnung-specific (CIUS) checks: `build_cii`
+- **No XRechnung UBL writer yet**, and no XRechnung-specific (CIUS) checks: `build_cii`
   writes the guideline id of EN 16931.
 - PDF layout is out of scope, and so is writing into an existing PDF: this library gives a
   PDF/A-3 producer what it embeds, it does not produce or change PDFs.
