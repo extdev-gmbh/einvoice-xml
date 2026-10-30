@@ -1,0 +1,17 @@
+einvoice-xml
+Copyright 2026 ext.dev GmbH
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components
+----------------------
+
+einvoice-xml uses, but does not contain or modify, the following libraries. They are
+installed as separate Python packages (pinned in pyproject.toml) and remain under their
+own licenses:
+
+* pypdf — BSD-3-Clause, https://github.com/py-pdf/pypdf
+* defusedxml — Python Software Foundation License 2.0, https://github.com/tiran/defusedxml
+
+ZUGFeRD and Factur-X are names of their respective owners (FeRD, FNFE-MPE); this project
+is not affiliated with them.

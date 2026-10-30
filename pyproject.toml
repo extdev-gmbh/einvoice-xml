@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "einvoice-xml"
+dynamic = ["version"]
+description = "Build, embed and read EN 16931 e-invoices (ZUGFeRD/Factur-X CII, XRechnung CII/UBL)."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.12"
+keywords = ["e-invoice", "EN 16931", "CII", "UBL", "PDF/A-3"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Accounting",
+    "Typing :: Typed",
+]
+dependencies = [
+    "defusedxml==0.7.1",
+    "pypdf==6.21.4",
+]
+
+[project.urls]
+Source = "https://github.com/extdev-gmbh/einvoice-xml"
+Changelog = "https://github.com/extdev-gmbh/einvoice-xml/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+    "fpdf2==2.9.0",
+    "hypothesis==6.170.14",
+    "mypy==2.4.1",
+    "pip-audit==2.10.1",
+    "pytest==9.2.0",
+    "ruff==0.17.3",
+    "types-defusedxml==0.7.0.20250822",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "einvoice_xml.__version__" }
+
+[tool.setuptools.package-data]
+einvoice_xml = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "BLE", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "BLE"]
+"ci/*" = ["S", "E501"]
+"tests/test_public_tree.py" = ["S", "BLE", "E501"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
