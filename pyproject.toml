@@ -31,7 +31,7 @@ Changelog = "https://github.com/extdev-gmbh/einvoice-xml/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 dev = [
     "fpdf2==2.9.0",
-    "hypothesis==6.170.14",
+    "hypothesis==6.170.15",
     "mypy==2.4.1",
     "pip-audit==2.10.1",
     "pytest==9.2.0",
